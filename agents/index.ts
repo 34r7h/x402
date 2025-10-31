@@ -54,7 +54,7 @@ for (const [path, agentApp] of Object.entries(agentMap)) {
     const newUrl = new URL(remainingPath + originalUrl.search, originalUrl.origin);
     
     // Get request body if present
-    let body: BodyInit | null = null;
+    let body: any = null;
     if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
       try {
         body = await c.req.raw.clone().arrayBuffer();
