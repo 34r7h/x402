@@ -43,18 +43,6 @@ For each bounty, create a PR:
 5. Include submission file path
 6. Check all acceptance criteria
 
-**PR Order:**
-- PR #1 → Issue #1 → `submissions/fresh-markets-watch.md`
-- PR #2 → Issue #2 → `submissions/cross-dex-arbitrage-alert.md`
-- PR #3 → Issue #3 → `submissions/slippage-sentinel.md`
-- PR #4 → Issue #4 → `submissions/gasroute-oracle.md`
-- PR #5 → Issue #5 → `submissions/approval-risk-auditor.md`
-- PR #6 → Issue #6 → `submissions/yield-pool-watcher.md`
-- PR #7 → Issue #7 → `submissions/lp-impermanent-loss-estimator.md`
-- PR #8 → Issue #8 → `submissions/perps-funding-pulse.md`
-- PR #9 → Issue #9 → `submissions/lending-liquidation-sentinel.md`
-- PR #10 → Issue #10 → `submissions/bridge-route-pinger.md`
-
 ## 🎯 Quick PR Template
 
 For each PR:

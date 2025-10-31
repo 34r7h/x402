@@ -81,7 +81,7 @@ for (const [path, agentApp] of Object.entries(agentMap)) {
 }
 
 // Start server
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.PORT) || 3005;
 serve({
   fetch: mainApp.fetch,
   port,
