@@ -117,7 +117,11 @@ async function findArbitrageOpportunities(
         
         const rpcUrl = process.env[`RPC_URL_${chain.toUpperCase()}`] || 
                        (chain.toLowerCase() === "ethereum" ? "https://eth.llamarpc.com" : 
-                        chain.toLowerCase() === "polygon" ? "https://polygon.llamarpc.com" : 
+                        chain.toLowerCase() === "polygon" ? "https://polygon.llamarpc.com" :
+                        chain.toLowerCase() === "arbitrum" ? "https://arbitrum.llamarpc.com" :
+                        chain.toLowerCase() === "optimism" ? "https://optimism.llamarpc.com" :
+                        chain.toLowerCase() === "base" ? "https://base.llamarpc.com" :
+                        chain.toLowerCase() === "bsc" ? "https://bsc.llamarpc.com" :
                         "https://eth.llamarpc.com");
         
         const provider = new ethers.JsonRpcProvider(rpcUrl);

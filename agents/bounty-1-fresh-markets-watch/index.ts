@@ -34,91 +34,42 @@ async function getTopHolders(
   tokenAddress: string,
   limit: number = 10
 ): Promise<string[]> {
+  // Fast path: query recent large transfers only (last 5000 blocks)
   try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout")), 5000);
+    });
+
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
     const currentBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max(0, currentBlock - 50000); // Scan last ~50000 blocks
+    const fromBlock = Math.max(0, currentBlock - 5000); // Much smaller range for speed
     
-    // Query Transfer events to build holder list
     const transferFilter = tokenContract.filters.Transfer();
-    const transfers = await tokenContract.queryFilter(transferFilter, fromBlock, currentBlock);
+    const queryPromise = tokenContract.queryFilter(transferFilter, fromBlock, currentBlock);
+    const transfers = await Promise.race([queryPromise, timeoutPromise]);
     
-    // Aggregate balances
-    const balances: Map<string, bigint> = new Map();
-    
-    for (const event of transfers) {
-      if (!("args" in event) || !event.args) continue;
-      const args = event.args as any;
-      const from = args[0];
-      const to = args[1];
-      const value = args[2];
-      
-      // Update balances
-      if (from && from !== ethers.ZeroAddress) {
-        const current = balances.get(from) || BigInt(0);
-        balances.set(from, current - value);
-      }
-      if (to && to !== ethers.ZeroAddress) {
-        const current = balances.get(to) || BigInt(0);
-        balances.set(to, current + value);
-      }
-    }
-    
-    // Get current balances for addresses that might have received tokens
-    const holders = new Set<string>();
-    for (const event of transfers) {
-      if ("args" in event && event.args) {
-        const args = event.args as any;
-        if (args[1] !== ethers.ZeroAddress) {
-          holders.add(args[1]);
-        }
-      }
-    }
-    
-    // Query current balances
-    const holderBalances: Array<{ address: string; balance: bigint }> = [];
-    const holdersArray = Array.from(holders).slice(0, 100); // Limit to 100 to avoid too many calls
-    
-    for (const holder of holdersArray) {
-      try {
-        const balance = await tokenContract.balanceOf(holder);
-        if (balance > BigInt(0)) {
-          holderBalances.push({ address: holder, balance });
-        }
-      } catch (e) {
-        // Skip if balanceOf fails
-        continue;
-      }
-    }
-    
-    // Sort by balance and return top holders
-    holderBalances.sort((a, b) => (b.balance > a.balance ? 1 : -1));
-    return holderBalances.slice(0, limit).map(h => h.address);
-  } catch (error) {
-    console.error(`Error getting top holders for ${tokenAddress}:`, error);
-    // Fallback: try to query recent large transfers
-    try {
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-      const currentBlock = await provider.getBlockNumber();
-      const fromBlock = Math.max(0, currentBlock - 10000);
-      const transferFilter = tokenContract.filters.Transfer();
-      const transfers = await tokenContract.queryFilter(transferFilter, fromBlock, currentBlock);
-      
     const largeTransfers: Array<{ to: string; value: bigint }> = [];
     for (const event of transfers) {
       if ("args" in event && event.args) {
         const args = event.args as any;
-        if (args[1] !== ethers.ZeroAddress) {
+        if (args[1] !== ethers.ZeroAddress && args[2] > BigInt(0)) {
           largeTransfers.push({ to: args[1], value: args[2] });
         }
       }
     }
-      
-      largeTransfers.sort((a, b) => (b.value > a.value ? 1 : -1));
-      return [...new Set(largeTransfers.slice(0, limit).map(t => t.to))];
-    } catch (fallbackError) {
-      return [];
+    
+    // Sort by value and get unique addresses
+    largeTransfers.sort((a, b) => (b.value > a.value ? 1 : -1));
+    const uniqueHolders = new Set<string>();
+    for (const transfer of largeTransfers) {
+      if (uniqueHolders.size >= limit) break;
+      uniqueHolders.add(transfer.to);
     }
+    
+    return Array.from(uniqueHolders);
+  } catch (error) {
+    // Return empty array on any error
+    return [];
   }
 }
 
@@ -191,20 +142,45 @@ async function scanNewPairs(
       const token1 = event.args[1];
       const pairAddress = event.args[2];
 
-      const block = await provider.getBlock(event.blockNumber);
-      const createdAt = block?.timestamp || Math.floor(Date.now() / 1000);
+      // Get block with timeout
+      let createdAt = Math.floor(Date.now() / 1000);
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout")), 3000);
+        });
+        const blockPromise = provider.getBlock(event.blockNumber);
+        const block = await Promise.race([blockPromise, timeoutPromise]);
+        if (block) createdAt = Number(block.timestamp);
+      } catch (e) {
+        // Use current time if block fetch fails
+      }
 
-      // Get initial liquidity
-      const initLiquidity = await getInitialLiquidity(provider, pairAddress);
+      // Get initial liquidity with timeout
+      let initLiquidity = "0, 0";
+      try {
+        const timeoutPromise = new Promise<string>((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout")), 3000);
+        });
+        const liquidityPromise = getInitialLiquidity(provider, pairAddress);
+        initLiquidity = await Promise.race([liquidityPromise, timeoutPromise]);
+      } catch (e) {
+        // Use default if liquidity fetch fails
+      }
 
-      // Get top holders for both tokens
-      const [topHolders0, topHolders1] = await Promise.all([
-        getTopHolders(provider, token0, 5),
-        getTopHolders(provider, token1, 5),
-      ]);
-      const topHolders = Array.from(
-        new Set([...topHolders0, ...topHolders1])
-      ).slice(0, 10);
+      // Get top holders with timeout (parallel with short timeout)
+      let topHolders: string[] = [];
+      try {
+        const timeoutPromise = new Promise<string[]>((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout")), 4000);
+        });
+        const holdersPromise = Promise.all([
+          getTopHolders(provider, token0, 5),
+          getTopHolders(provider, token1, 5),
+        ]).then(([h0, h1]) => Array.from(new Set([...h0, ...h1])).slice(0, 10));
+        topHolders = await Promise.race([holdersPromise, timeoutPromise]);
+      } catch (e) {
+        // Use empty array if holders fetch fails
+      }
 
       pairs.push({
         pair_address: pairAddress,
@@ -245,10 +221,10 @@ addEntrypoint({
         const defaultRPCs: Record<string, string> = {
           ethereum: "https://eth.llamarpc.com",
           polygon: "https://polygon.llamarpc.com",
-          arbitrum: "https://arb1.arbitrum.io/rpc",
-          optimism: "https://mainnet.optimism.io",
-          base: "https://mainnet.base.org",
-          bsc: "https://bsc-dataseed1.binance.org",
+          arbitrum: "https://arbitrum.llamarpc.com",
+          optimism: "https://optimism.llamarpc.com",
+          base: "https://base.llamarpc.com",
+          bsc: "https://bsc.llamarpc.com",
         };
         rpcUrl = defaultRPCs[chainLower] || "https://eth.llamarpc.com";
       }

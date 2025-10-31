@@ -11,13 +11,13 @@ const { app, addEntrypoint } = createAgentApp({
 const CHAIN_RPC_URLS: Record<string, string> = {
   ethereum: process.env.RPC_URL_ETHEREUM || "https://eth.llamarpc.com",
   polygon: process.env.RPC_URL_POLYGON || "https://polygon.llamarpc.com",
-  arbitrum: process.env.RPC_URL_ARBITRUM || "https://arb1.arbitrum.io/rpc",
-  optimism: process.env.RPC_URL_OPTIMISM || "https://mainnet.optimism.io",
-  base: process.env.RPC_URL_BASE || "https://mainnet.base.org",
-  bsc: process.env.RPC_URL_BSC || "https://bsc-dataseed1.binance.org",
-  avalanche: process.env.RPC_URL_AVALANCHE || "https://api.avax.network/ext/bc/C/rpc",
-  fantom: process.env.RPC_URL_FANTOM || "https://rpc.ftm.tools",
-  celo: process.env.RPC_URL_CELO || "https://forno.celo.org",
+  arbitrum: process.env.RPC_URL_ARBITRUM || "https://arbitrum.llamarpc.com",
+  optimism: process.env.RPC_URL_OPTIMISM || "https://optimism.llamarpc.com",
+  base: process.env.RPC_URL_BASE || "https://base.llamarpc.com",
+  bsc: process.env.RPC_URL_BSC || "https://bsc.llamarpc.com",
+  avalanche: process.env.RPC_URL_AVALANCHE || "https://avalanche.llamarpc.com",
+  fantom: process.env.RPC_URL_FANTOM || "https://fantom.llamarpc.com",
+  celo: process.env.RPC_URL_CELO || "https://celo.llamarpc.com",
 };
 
 // Native token prices in USD (would use oracle in production)

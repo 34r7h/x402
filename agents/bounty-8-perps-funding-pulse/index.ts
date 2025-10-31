@@ -135,7 +135,7 @@ async function fetchFundingData(
   market: string
 ): Promise<FundingData | null> {
   try {
-    const rpcUrl = process.env.RPC_URL || "https://arb1.arbitrum.io/rpc";
+    const rpcUrl = process.env.RPC_URL || "https://arbitrum.llamarpc.com";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     
     const venueLower = venueId.toLowerCase();
