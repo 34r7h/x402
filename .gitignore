@@ -1,0 +1,27 @@
+# Node modules - ignore all instances
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+
+# Environment files
+.env
+.env.local
+**/.env
+**/.env.local
+
+# Logs
+*.log
+**/*.log
+
+# OS files
+.DS_Store
+**/.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+**/.idea/
+**/.vscode/

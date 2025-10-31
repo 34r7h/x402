@@ -1,0 +1,21 @@
+{
+  "name": "fresh-markets-watch",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@lucid-dreams/agent-kit": "^0.2.24",
+    "@types/express": "^5.0.5",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
