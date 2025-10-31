@@ -296,17 +296,19 @@ addEntrypoint({
   },
 });
 
-// Start HTTP server if run directly
-import { serve } from '@hono/node-server';
-
-// Always start server when run as main module
-const port = Number(process.env.PORT) || 3000;
-serve({
-  fetch: app.fetch,
-  port,
-}, () => {
-  console.log(`Agent server running on http://localhost:${port}`);
-  console.log(`Entrypoints: scan_new_pairs`);
-});
+// Start HTTP server only if run directly (not when imported via router)
+// Only start server if NO_AGENT_SERVER is not set (allows individual testing)
+if (!process.env.NO_AGENT_SERVER && process.argv[1]?.includes('bounty-1-fresh-markets-watch')) {
+  import('@hono/node-server').then(({ serve }) => {
+    const port = Number(process.env.PORT) || 3000;
+    serve({
+      fetch: app.fetch,
+      port,
+    }, () => {
+      console.log(`Agent server running on http://localhost:${port}`);
+      console.log(`Entrypoints: scan_new_pairs`);
+    });
+  });
+}
 
 export default app;

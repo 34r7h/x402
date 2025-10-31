@@ -1,3 +1,6 @@
+// Prevent individual agents from starting servers when imported
+process.env.NO_AGENT_SERVER = '1';
+
 // Main routing server for all agents
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';

@@ -100,9 +100,10 @@ async function getHistoricalPrice(
       
       if (syncEvents.length > 0) {
         const oldestSync = syncEvents[0];
-        if (oldestSync.args) {
-          const reserve0 = oldestSync.args[0];
-          const reserve1 = oldestSync.args[1];
+        if ('args' in oldestSync && oldestSync.args) {
+          const args = oldestSync.args as any;
+          const reserve0 = args[0];
+          const reserve1 = args[1];
           initialPrice = Number(reserve1) / Number(reserve0) *
                         (10 ** Number(decimals0)) / (10 ** Number(decimals1));
         }
@@ -136,9 +137,10 @@ async function getTradingVolume(
     
     let totalVolume = BigInt(0);
     for (const swap of swaps) {
-      if (swap.args) {
-        const amount0In = swap.args.amount0In || BigInt(0);
-        const amount1In = swap.args.amount1In || BigInt(0);
+      if ('args' in swap && swap.args) {
+        const args = swap.args as any;
+        const amount0In = args.amount0In || BigInt(0);
+        const amount1In = args.amount1In || BigInt(0);
         totalVolume += amount0In + amount1In;
       }
     }
@@ -291,13 +293,17 @@ addEntrypoint({
 // Start HTTP server if run directly
 import { serve } from '@hono/node-server';
 
-// Always start server when run as main module
-const port = Number(process.env.PORT) || 3000;
-serve({
-  fetch: app.fetch,
-  port,
-}, () => {
-  console.log(`Agent server running on http://localhost:${port}`);
-});
+// Start server only if not disabled
+if (!process.env.NO_AGENT_SERVER) {
+  import("@hono/node-server").then(({ serve }) => {
+    const port = Number(process.env.PORT) || 3000;
+    serve({
+      fetch: app.fetch,
+      port,
+    }, () => {
+      console.log(`Agent server running on http://localhost:${port}`);
+    });
+  });
+}
 
 export default app;

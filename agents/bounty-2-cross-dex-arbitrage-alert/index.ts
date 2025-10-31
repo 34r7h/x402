@@ -258,16 +258,18 @@ addEntrypoint({
   },
 });
 
-// Start HTTP server if run directly
-import { serve } from '@hono/node-server';
-
-// Always start server when run as main module
-const port = Number(process.env.PORT) || 3000;
-serve({
-  fetch: app.fetch,
-  port,
-}, () => {
-  console.log(`Agent server running on http://localhost:${port}`);
-});
+// Start HTTP server only if run directly (not when imported by router)
+if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || 
+    process.argv[1]?.includes('bounty-2-cross-dex-arbitrage-alert')) {
+  import('@hono/node-server').then(({ serve }) => {
+    const port = Number(process.env.PORT) || 3000;
+    serve({
+      fetch: app.fetch,
+      port,
+    }, () => {
+      console.log(`Agent server running on http://localhost:${port}`);
+    });
+  });
+}
 
 export default app;

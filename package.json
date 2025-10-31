@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "prestart": "npm run build",
-    "start": "node dist/agents/index.js",
+    "start": "NO_AGENT_SERVER=1 node dist/agents/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "module",

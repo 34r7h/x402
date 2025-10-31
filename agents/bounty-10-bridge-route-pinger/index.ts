@@ -262,13 +262,17 @@ addEntrypoint({
 // Start HTTP server if run directly
 import { serve } from '@hono/node-server';
 
-// Always start server when run as main module
-const port = Number(process.env.PORT) || 3000;
-serve({
-  fetch: app.fetch,
-  port,
-}, () => {
-  console.log(`Agent server running on http://localhost:${port}`);
-});
+// Start server only if not disabled
+if (!process.env.NO_AGENT_SERVER) {
+  import("@hono/node-server").then(({ serve }) => {
+    const port = Number(process.env.PORT) || 3000;
+    serve({
+      fetch: app.fetch,
+      port,
+    }, () => {
+      console.log(`Agent server running on http://localhost:${port}`);
+    });
+  });
+}
 
 export default app;
