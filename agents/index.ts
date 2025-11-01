@@ -47,7 +47,52 @@ mainApp.get('/', (c) => {
 
 // Route each agent path
 for (const [path, agentApp] of Object.entries(agentMap)) {
-  // Route all requests for this agent to its app
+  // Route exact path (e.g., /fresh-markets-watch) - return 402 payment required for GET
+  mainApp.all(`/${path}`, async (c) => {
+    // For GET requests (x402scan validation), always return 402 with x402 response format
+    if (c.req.method === 'GET' || c.req.method === 'HEAD') {
+      return c.json({
+        x402Version: 1,
+        accepts: [{
+          scheme: "exact",
+          network: "base",
+          maxAmountRequired: "1000000000000000", // 0.001 ETH in wei (1e15)
+          resource: `/${path}`,
+          description: `Access ${path} agent services`,
+          mimeType: "application/json",
+          payTo: process.env.PAY_TO_ADDRESS || "0x0000000000000000000000000000000000000000",
+          maxTimeoutSeconds: 300,
+          asset: "native",
+        }]
+      }, 402);
+    }
+    
+    // For non-GET requests, forward to agent app
+    const originalUrl = new URL(c.req.url);
+    const newUrl = new URL('/' + originalUrl.search, originalUrl.origin);
+    
+    let body: any = null;
+    if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+      try {
+        body = await c.req.raw.clone().arrayBuffer();
+      } catch (e) {}
+    }
+
+    const newRequest = new Request(newUrl.toString(), {
+      method: c.req.method,
+      headers: c.req.raw.headers,
+      body: body,
+    });
+
+    try {
+      const response = await agentApp.fetch(newRequest);
+      return response;
+    } catch (error: any) {
+      return c.json({ error: error.message || 'Internal server error' }, 500);
+    }
+  });
+
+  // Route sub-paths (e.g., /fresh-markets-watch/entrypoints)
   mainApp.all(`/${path}/*`, async (c) => {
     const originalUrl = new URL(c.req.url);
     // Remove the agent path prefix (e.g., /fresh-markets-watch) and keep the rest

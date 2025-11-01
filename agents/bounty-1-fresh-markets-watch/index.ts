@@ -47,7 +47,7 @@ async function getTopHolders(
     const transferFilter = tokenContract.filters.Transfer();
     const queryPromise = tokenContract.queryFilter(transferFilter, fromBlock, currentBlock);
     const transfers = await Promise.race([queryPromise, timeoutPromise]);
-    
+      
     const largeTransfers: Array<{ to: string; value: bigint }> = [];
     for (const event of transfers) {
       if ("args" in event && event.args) {
@@ -57,9 +57,9 @@ async function getTopHolders(
         }
       }
     }
-    
+      
     // Sort by value and get unique addresses
-    largeTransfers.sort((a, b) => (b.value > a.value ? 1 : -1));
+      largeTransfers.sort((a, b) => (b.value > a.value ? 1 : -1));
     const uniqueHolders = new Set<string>();
     for (const transfer of largeTransfers) {
       if (uniqueHolders.size >= limit) break;
@@ -69,7 +69,7 @@ async function getTopHolders(
     return Array.from(uniqueHolders);
   } catch (error) {
     // Return empty array on any error
-    return [];
+      return [];
   }
 }
 
@@ -174,8 +174,8 @@ async function scanNewPairs(
           setTimeout(() => reject(new Error("Timeout")), 4000);
         });
         const holdersPromise = Promise.all([
-          getTopHolders(provider, token0, 5),
-          getTopHolders(provider, token1, 5),
+        getTopHolders(provider, token0, 5),
+        getTopHolders(provider, token1, 5),
         ]).then(([h0, h1]) => Array.from(new Set([...h0, ...h1])).slice(0, 10));
         topHolders = await Promise.race([holdersPromise, timeoutPromise]);
       } catch (e) {
@@ -276,14 +276,14 @@ addEntrypoint({
 // Only start server if NO_AGENT_SERVER is not set (allows individual testing)
 if (!process.env.NO_AGENT_SERVER && process.argv[1]?.includes('bounty-1-fresh-markets-watch')) {
   import('@hono/node-server').then(({ serve }) => {
-    const port = Number(process.env.PORT) || 3000;
-    serve({
-      fetch: app.fetch,
-      port,
-    }, () => {
-      console.log(`Agent server running on http://localhost:${port}`);
-      console.log(`Entrypoints: scan_new_pairs`);
-    });
+const port = Number(process.env.PORT) || 3000;
+serve({
+  fetch: app.fetch,
+  port,
+}, () => {
+  console.log(`Agent server running on http://localhost:${port}`);
+  console.log(`Entrypoints: scan_new_pairs`);
+});
   });
 }
 
