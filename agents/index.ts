@@ -51,13 +51,14 @@ for (const [path, agentApp] of Object.entries(agentMap)) {
   mainApp.all(`/${path}`, async (c) => {
     // For GET requests (x402scan validation), always return 402 with x402 response format
     if (c.req.method === 'GET' || c.req.method === 'HEAD') {
+      const fullUrl = new URL(c.req.url);
       return c.json({
         x402Version: 1,
         accepts: [{
           scheme: "exact",
           network: "base",
           maxAmountRequired: "1000000000000000", // 0.001 ETH in wei (1e15)
-          resource: `/${path}`,
+          resource: `${fullUrl.origin}/${path}`,
           description: `Access ${path} agent services`,
           mimeType: "application/json",
           payTo: process.env.PAY_TO_ADDRESS || "0x0000000000000000000000000000000000000000",
