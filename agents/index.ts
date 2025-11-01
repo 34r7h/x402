@@ -1,6 +1,17 @@
 // Prevent individual agents from starting servers when imported
 process.env.NO_AGENT_SERVER = '1';
 
+// Global error handlers to prevent crashes
+process.on('unhandledRejection', (error: any) => {
+  console.error('Unhandled rejection:', error?.message || error);
+  // Don't crash on unhandled rejections - just log
+});
+
+process.on('uncaughtException', (error: any) => {
+  console.error('Uncaught exception:', error?.message || error);
+  // Don't crash on uncaught exceptions - just log
+});
+
 // Main routing server for all agents
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';

@@ -36,8 +36,9 @@ async function getTopHolders(
 ): Promise<string[]> {
   // Fast path: query recent large transfers only (last 5000 blocks)
   try {
+    let timeoutId: NodeJS.Timeout;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Timeout")), 5000);
+      timeoutId = setTimeout(() => reject(new Error("Timeout")), 5000);
     });
 
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
@@ -46,7 +47,9 @@ async function getTopHolders(
     
     const transferFilter = tokenContract.filters.Transfer();
     const queryPromise = tokenContract.queryFilter(transferFilter, fromBlock, currentBlock);
-    const transfers = await Promise.race([queryPromise, timeoutPromise]);
+    try {
+      const transfers = await Promise.race([queryPromise, timeoutPromise]);
+      clearTimeout(timeoutId!);
       
     const largeTransfers: Array<{ to: string; value: bigint }> = [];
     for (const event of transfers) {
@@ -66,10 +69,15 @@ async function getTopHolders(
       uniqueHolders.add(transfer.to);
     }
     
-    return Array.from(uniqueHolders);
+      return Array.from(uniqueHolders);
+    } catch (error) {
+      clearTimeout(timeoutId!);
+      // Return empty array on any error (timeout or RPC failure)
+      return [];
+    }
   } catch (error) {
     // Return empty array on any error
-      return [];
+    return [];
   }
 }
 
@@ -145,12 +153,19 @@ async function scanNewPairs(
       // Get block with timeout
       let createdAt = Math.floor(Date.now() / 1000);
       try {
+        let timeoutId: NodeJS.Timeout;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout")), 3000);
+          timeoutId = setTimeout(() => reject(new Error("Timeout")), 3000);
         });
         const blockPromise = provider.getBlock(event.blockNumber);
-        const block = await Promise.race([blockPromise, timeoutPromise]);
-        if (block) createdAt = Number(block.timestamp);
+        try {
+          const block = await Promise.race([blockPromise, timeoutPromise]);
+          clearTimeout(timeoutId);
+          if (block) createdAt = Number(block.timestamp);
+        } catch (e) {
+          clearTimeout(timeoutId);
+          // Use current time if block fetch fails
+        }
       } catch (e) {
         // Use current time if block fetch fails
       }
@@ -158,11 +173,18 @@ async function scanNewPairs(
       // Get initial liquidity with timeout
       let initLiquidity = "0, 0";
       try {
+        let timeoutId: NodeJS.Timeout;
         const timeoutPromise = new Promise<string>((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout")), 3000);
+          timeoutId = setTimeout(() => reject(new Error("Timeout")), 3000);
         });
         const liquidityPromise = getInitialLiquidity(provider, pairAddress);
-        initLiquidity = await Promise.race([liquidityPromise, timeoutPromise]);
+        try {
+          initLiquidity = await Promise.race([liquidityPromise, timeoutPromise]);
+          clearTimeout(timeoutId);
+        } catch (e) {
+          clearTimeout(timeoutId);
+          // Use default if liquidity fetch fails
+        }
       } catch (e) {
         // Use default if liquidity fetch fails
       }
@@ -170,14 +192,21 @@ async function scanNewPairs(
       // Get top holders with timeout (parallel with short timeout)
       let topHolders: string[] = [];
       try {
+        let timeoutId: NodeJS.Timeout;
         const timeoutPromise = new Promise<string[]>((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout")), 4000);
+          timeoutId = setTimeout(() => reject(new Error("Timeout")), 4000);
         });
         const holdersPromise = Promise.all([
         getTopHolders(provider, token0, 5),
         getTopHolders(provider, token1, 5),
         ]).then(([h0, h1]) => Array.from(new Set([...h0, ...h1])).slice(0, 10));
-        topHolders = await Promise.race([holdersPromise, timeoutPromise]);
+        try {
+          topHolders = await Promise.race([holdersPromise, timeoutPromise]);
+          clearTimeout(timeoutId);
+        } catch (e) {
+          clearTimeout(timeoutId);
+          // Use empty array if holders fetch fails
+        }
       } catch (e) {
         // Use empty array if holders fetch fails
       }
@@ -233,14 +262,19 @@ addEntrypoint({
 
       const allPairs: PairInfo[] = [];
 
-      // Scan each factory
+      // Scan each factory - catch errors per factory to continue processing
       for (const factoryAddress of input.factories) {
-        const pairs = await scanNewPairs(
-          provider,
-          factoryAddress,
-          input.window_minutes
-        );
-        allPairs.push(...pairs);
+        try {
+          const pairs = await scanNewPairs(
+            provider,
+            factoryAddress,
+            input.window_minutes
+          );
+          allPairs.push(...pairs);
+        } catch (factoryError: any) {
+          // Log but continue with other factories
+          console.error(`Error scanning factory ${factoryAddress}:`, factoryError?.message || factoryError);
+        }
       }
 
       // Sort by creation time (newest first)
@@ -258,9 +292,11 @@ addEntrypoint({
         },
       };
     } catch (error: any) {
+      // Ensure all errors are caught and returned as valid responses
+      console.error('Handler error:', error?.message || error);
       return {
         output: {
-          error: error.message || "Unknown error occurred",
+          error: error?.message || "Unknown error occurred",
           pairs: [],
           count: 0,
         },
